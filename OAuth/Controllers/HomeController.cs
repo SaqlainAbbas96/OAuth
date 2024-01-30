@@ -5,9 +5,10 @@ namespace OAuth.Controllers
 {
 	[Route("api/[controller]")]
 	[ApiController]
+	[Authorize]
 	public class HomeController : Controller
 	{
-		[HttpGet, Authorize]
+		[HttpGet]
 		public ActionResult<string> Hello()
 		{
 			return "Hello World from Home Controller";

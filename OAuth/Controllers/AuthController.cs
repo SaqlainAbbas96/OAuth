@@ -18,41 +18,38 @@ namespace OAuth.Controllers
 		private readonly IConfiguration config;
 		private static User user = new User();
 
-		private readonly IUserService userService;
+		private readonly IUserService _userService;
 
 		public AuthController(IConfiguration configuration, IUserService userService)
 		{
 			config = configuration;
-			this.userService = userService;
+			_userService = userService;
 		}
 
 		[HttpPost]
 		public async Task<ActionResult<User>> Register(UserDto userDto)
 		{
-			userService.PasswordHash(userDto.password, out byte[] passwordHash, out byte[] passwordSalt);
-			user.username = userDto.username;
-			user.passwordHash = passwordHash;
-			user.passwordSalt = passwordSalt;
-
-			return Ok(user);
+			var res = await _userService.RegisterUser(userDto);
+			return Ok(res);
 		}
 
 		[HttpPost("Login")]
-		public async Task<ActionResult<string>> Login(UserDto userDto) 
+		public async Task<ActionResult<string>> Login(UserDto userDto)
 		{
-			if (user.username != userDto.username) 
+			var user = _userService.GetUserByEmail(userDto.email);
+
+			if (user != null)
 			{
-				return BadRequest("User not found");
+				if (user.email != userDto.email)
+					return BadRequest("Incorrect email");
+
+				if (!_userService.VerifyHashPassword(userDto.password, user.passwordHash, user.passwordSalt))
+					return BadRequest("Wrong Password");
+
+				string jwt = _userService.GenerateToken(config, user);
+				return Ok(jwt);
 			}
-
-			if (!userService.VerifyHashPassword(userDto.password, user.passwordHash, user.passwordSalt)) 
-			{
-				return BadRequest("Wrong Password");
-			}
-
-			string jwt = userService.GenerateToken(config,user);
-			return Ok(jwt);
-
+			return BadRequest("User not found");
 		}
 	}
 }
