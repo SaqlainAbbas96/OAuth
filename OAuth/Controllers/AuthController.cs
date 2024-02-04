@@ -15,41 +15,33 @@ namespace OAuth.Controllers
 	[ApiController]
 	public class AuthController : ControllerBase
 	{
-		private readonly IConfiguration config;
-		private static User user = new User();
-
 		private readonly IUserService _userService;
-
-		public AuthController(IConfiguration configuration, IUserService userService)
+		public AuthController(IUserService userService)
 		{
-			config = configuration;
 			_userService = userService;
 		}
 
-		[HttpPost]
-		public async Task<ActionResult<User>> Register(UserDto userDto)
+		[HttpPost("Register")]
+		public async Task<ActionResult<User>> Register([FromBody] UserDto userDto)
 		{
 			var res = await _userService.RegisterUser(userDto);
 			return Ok(res);
 		}
 
 		[HttpPost("Login")]
-		public async Task<ActionResult<string>> Login(UserDto userDto)
+		public async Task<ActionResult<string>> Login([FromBody] LoginDto loginDto)
 		{
-			var user = _userService.GetUserByEmail(userDto.email);
+			JwtSecurityTokenHandler tokenHandler = new JwtSecurityTokenHandler();
 
-			if (user != null)
+			string value = await _userService.Authenticate(loginDto);
+			var isValidJwt = tokenHandler.CanReadToken(value);
+
+			if (isValidJwt)
 			{
-				if (user.email != userDto.email)
-					return BadRequest("Incorrect email");
-
-				if (!_userService.VerifyHashPassword(userDto.password, user.passwordHash, user.passwordSalt))
-					return BadRequest("Wrong Password");
-
-				string jwt = _userService.GenerateToken(config, user);
-				return Ok(jwt);
+				return Ok(value);
 			}
-			return BadRequest("User not found");
+
+			return Unauthorized(value);
 		}
 	}
 }

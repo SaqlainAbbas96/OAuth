@@ -19,10 +19,18 @@ namespace OAuth.Repositories
 			return "User registered successfully";
 		}
 
-		public User GetUserByEmail(string email)
+		public async Task<string?> GetRole(int userId)
 		{
-			var users = _db.User.Where(x => x.email == email).FirstOrDefault();
-			return users;
+			int roleId = _db.UserRoles.Where(u => u.userId == userId).Select(u => u.roleId).FirstOrDefault();
+			string role = _db.Role.Where(r => r.id == roleId).Select(r => r.rolename).FirstOrDefault();
+			return role;
+		}
+
+		public async Task<User?> Checkuser(string email, string password)
+		{
+			var user = _db.User.FirstOrDefault(u=> u.email == email);
+
+			return user != null ? user : null;
 		}
 	}
 }

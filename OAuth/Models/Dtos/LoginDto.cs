@@ -2,7 +2,7 @@
 
 namespace OAuth.Models.Dtos
 {
-	public class UserDto
+	public class LoginDto
 	{
 		[Required]
 		[EmailAddress]

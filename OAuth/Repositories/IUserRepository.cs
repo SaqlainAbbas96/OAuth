@@ -5,7 +5,7 @@ namespace OAuth.Repositories
 	public interface IUserRepository
 	{
 		Task<string> RegisterUser(User user);
-
-		User GetUserByEmail(string email);
+		Task<User?> Checkuser(string email, string password);
+		Task<string> GetRole(int userId);
 	}
 }

@@ -11,10 +11,13 @@ namespace OAuth.Services
 	public class UserService : IUserService
 	{
 		private readonly IUserRepository _userRepository;
-        public UserService(IUserRepository userRepository)
+		private readonly IJwtAuthenticationService _jwtAuthenticationService;
+		public UserService(IUserRepository userRepository, IJwtAuthenticationService jwtAuthenticationService)
         {
+			_jwtAuthenticationService = jwtAuthenticationService;
 			_userRepository = userRepository;
         }
+
         public async Task<string> RegisterUser(UserDto userDto)
 		{
 			if (string.IsNullOrEmpty(userDto.email))
@@ -32,6 +35,22 @@ namespace OAuth.Services
 			return res;
 		}
 
+		public async Task<string> Authenticate(LoginDto loginDto)
+		{
+			var user = await _userRepository.Checkuser(loginDto.email, loginDto.password);
+
+			if (user is not null) 
+			{
+				Global.userId = user.id;
+				var userRole = await _userRepository.GetRole(user.id);
+
+				bool isPasswordCorrect = VerifyHashPassword(loginDto.password, user.passwordHash, user.passwordSalt);
+				return isPasswordCorrect ? _jwtAuthenticationService.GenerateToken(loginDto.email, userRole) : "Invalid Password";
+			}
+			else
+				return "Invalid Credentials";
+		}
+
 		public void PasswordHash(string password, out byte[] passwordHash, out byte[] passwordSalt)
 		{
 			using (var h = new HMACSHA512())
@@ -41,10 +60,10 @@ namespace OAuth.Services
 			}
 		}
 
-		public User GetUserByEmail(string email)
+		public async Task<string> GetUserRole()
 		{
-			var user = _userRepository.GetUserByEmail(email);
-			return user;
+			var userrole = await _userRepository.GetRole(Global.userId);
+			return userrole;
 		}
 
 		public bool VerifyHashPassword(string password, byte[] passwordHash, byte[] passwordSalt)
@@ -55,26 +74,5 @@ namespace OAuth.Services
 				return hash.SequenceEqual(passwordHash);
 			}
 		}
-
-		public string GenerateToken(IConfiguration config, User user)
-		{
-			List<Claim> claims = new List<Claim>
-			{
-				new Claim(ClaimTypes.Name, user.email)
-				//new Claim(ClaimTypes.Role, "Admin")
-			};
-
-			var key = new SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(config.GetSection("Settings:Token").Value));
-
-			var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha512Signature);
-
-			var token = new JwtSecurityToken(claims: claims, expires: DateTime.Now.AddDays(1), signingCredentials: credentials);
-
-			var jwt = new JwtSecurityTokenHandler().WriteToken(token);
-
-			return jwt;
-
-		}
-
 	}
 }
